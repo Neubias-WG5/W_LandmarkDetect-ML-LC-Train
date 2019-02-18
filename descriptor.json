@@ -1,0 +1,139 @@
+{
+    "name": "LandmarkDetect-ML-LC-Train",
+    "container-image": {
+        "image": "neubiaswg5/w_landmarkdetect-ml-lc-train",
+        "type": "singularity"
+    },
+    "schema-version": "cytomine-0.1",
+    "description": "Training phase of the LC Landmark Detection Algorithm",
+    "command-line": "python run.py CYTOMINE_HOST CYTOMINE_PUBLIC_KEY CYTOMINE_PRIVATE_KEY CYTOMINE_ID_PROJECT CYTOMINE_ID_SOFTWARE CYTOMINE_TRAINING_IMAGES MODEL_NJOBS MODEL_D_MAX MODEL_N_SAMPLES MODEL_N_REDUC MODEL_W MODEL_N MODEL_T",
+    "inputs": [
+        {
+        	"id": "cytomine_host",
+      		"value-key": "@ID",
+      		"command-line-flag": "--@id",
+      		"name": "Cytomine host",
+      		"set-by-server": true,
+      		"optional": false,
+      		"type": "String"
+    	},
+    	{
+			"id": "cytomine_public_key",
+			"value-key": "@ID",
+			"command-line-flag": "--@id",
+			"name": "Cytomine public key",
+            "set-by-server": true,
+			"optional": false,
+			"type": "String"
+    	},
+    	{
+    		"id": "cytomine_private_key",
+			"value-key": "@ID",
+			"command-line-flag": "--@id",
+			"name": "Cytomine private key",
+			"set-by-server": true,
+			"optional": false,
+			"type": "String"
+    	},
+		{
+			"id": "cytomine_id_project",
+			"value-key": "@ID",
+			"command-line-flag": "--@id",
+			"name": "Cytomine project ID",
+			"set-by-server": true,
+			"optional": false,
+			"type": "Number"
+    	},
+		{
+			"id": "cytomine_id_software",
+			"value-key": "@ID",
+			"command-line-flag": "--@id",
+			"name": "Cytomine software ID",
+			"set-by-server": true,
+			"optional": false,
+			"type": "Number"
+		},
+        {
+            "id": "cytomine_training_images",
+            "value-key": "@ID",
+            "command-line-flag": "--@id",
+            "name": "Cytomine image IDs",
+            "set-by-server": false,
+            "optional": false,
+            "type": "ListDomain",
+	        "uri": "/api/project/$currentProject$/imageinstance.json?withoutLabel=true",
+	        "uri-print-attribute": "instanceFilename",
+	        "uri-sort-attribute": "instanceFilename"
+        },
+        {
+            "id": "model_njobs",
+            "value-key": "@ID",
+            "command-line-flag": "--@id",
+            "name": "Number of jobs",
+            "set-by-server": false,
+            "optional": false,
+            "default-value":1,
+            "type": "Number"
+        },
+        {
+            "id": "model_D_MAX",
+            "value-key": "@ID",
+            "command-line-flag": "--@id",
+            "name": "Radius D_MAX",
+            "set-by-server": false,
+            "optional": false,
+            "default-value":100,
+            "type": "Number"
+        },
+        {
+            "id": "model_n_samples",
+            "value-key": "@ID",
+            "command-line-flag": "--@id",
+            "name": "# samples per image",
+            "set-by-server": false,
+            "optional": false,
+            "default-value":50,
+            "type": "Number"
+        },
+        {
+            "id": "model_n_reduc",
+            "value-key": "@ID",
+            "command-line-flag": "--@id",
+            "name": "PCA reduction (for the coordinate vectors)",
+            "set-by-server": false,
+            "optional": false,
+            "default-value":5,
+            "type": "Number"
+        },
+        {
+            "id": "model_W",
+            "value-key": "@ID",
+            "command-line-flag": "--@id",
+            "name": "Window size",
+            "set-by-server": false,
+            "optional": false,
+            "default-value":3,
+            "type": "Number"
+        },
+        {
+            "id": "model_n",
+            "value-key": "@ID",
+            "command-line-flag": "--@id",
+            "name": "Number of features",
+            "set-by-server": false,
+            "optional": false,
+            "default-value":50,
+            "type": "Number"
+        },
+        {
+            "id": "model_T",
+            "value-key": "@ID",
+            "command-line-flag": "--@id",
+            "name": "Number of trees",
+            "set-by-server": false,
+            "optional": false,
+            "default-value":50,
+            "type": "Number"
+        }
+    ]
+}
