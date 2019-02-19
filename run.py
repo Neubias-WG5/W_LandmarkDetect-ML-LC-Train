@@ -1,130 +1,13 @@
+import sys, os
+from ldmtools import *
+import imageio
+import numpy as np
+from multiprocessing import Pool
 from VotingTreeRegressor import VotingTreeRegressor
 from neubiaswg5 import CLASS_LNDDET
 from neubiaswg5.helpers import NeubiasJob, prepare_data, get_discipline
 from cytomine.models import Annotation, Job, ImageInstanceCollection, AnnotationCollection, Property, AttachedFileCollection, AttachedFile
-import sys, os
-from ldmtools import *
-
-def	getcoordsim_neubias(gt_path, id_term, tr_im):
-	xcs = []
-	ycs = []
-	xrs = []
-	yrs = []
-	for i in range(len(tr_im)):
-		id = tr_im[i]
-		gt_img = imageio.imread(os.path.join(gt_path, '%d.tif'%id))
-		(y, x) = np.where(gt_img==id_term)
-		(h, w) = gt_img.shape
-		yc = y[0]
-		xc = x[0]
-		yr = yc/h
-		xr = xc/w
-		xcs.append(xc)
-		ycs.append(yc)
-		xrs.append(xr)
-		yrs.append(yr)
-	return np.array(xcs), np.array(ycs), np.array(xrs), np.array(yrs)
-
-
-def procrustes(x_coords, y_coords):
-	(ndata, nldms) = x_coords.shape
-
-	# 1. Centrer les formes en 0,0
-	mean_x = np.mean(x_coords, axis=1)
-	mean_y = np.mean(y_coords, axis=1)
-	coords_centered = np.zeros((ndata, 2 * nldms))
-	for i in range(nldms):
-		coords_centered[:, i] = x_coords[:, i] - mean_x
-		coords_centered[:, i + nldms] = y_coords[:, i] - mean_y
-
-	# 2. Fixer une forme t.q sa norme soit 1
-	coords_centered[0, :] = coords_centered[0, :] / np.linalg.norm(coords_centered[0, :])
-
-	# 3. Scaler et rotater les autres
-	c = np.zeros((2, nldms))
-	for i in range(1, ndata):
-		a = np.dot(coords_centered[i, :], coords_centered[0, :]) / (np.linalg.norm(coords_centered[i, :]) ** 2)
-		b = np.sum((coords_centered[i, 0:nldms] * coords_centered[0, nldms:]) - (
-					coords_centered[0, :nldms] * coords_centered[i, nldms:])) / (
-						np.linalg.norm(coords_centered[i, :]) ** 2)
-		s = np.sqrt((a ** 2) + (b ** 2))
-		theta = np.arctan(b / a)
-
-		scaling_matrix = s * np.array([[np.cos(theta), np.sin(theta)], [-np.sin(theta), np.cos(theta)]])
-		c[0, :] = coords_centered[i, 0:nldms]
-		c[1, :] = coords_centered[i, nldms:]
-
-		new_c = np.dot(scaling_matrix, c)
-
-		coords_centered[i, 0:nldms] = new_c[0, :]
-		coords_centered[i, nldms:] = new_c[1, :]
-
-	return coords_centered
-
-
-def apply_pca(coords, k):
-	(ndata, nldms) = coords.shape
-	m = np.mean(coords, axis=0).reshape((nldms, 1))
-	mat = np.zeros((nldms, nldms))
-	for i in range(ndata):
-		v = coords[i, :].reshape((nldms, 1))
-		d = v - m
-		mat = mat + np.dot(d, d.T)
-	mat = mat / float(nldms - 1)
-	(values, vectors) = np.linalg.eig(mat)
-	return m, vectors[:, 0:k]
-
-def build_integral_image(img):
-	(h, w) = img.shape
-	i_img = np.zeros((h, w))
-	i_img[0, 0] = img[0, 0]
-	for i in range(1, h):
-		i_img[i, 0] = i_img[i - 1, 0] + img[i, 0]
-	for i in range(1, w):
-		i_img[0, i] = i_img[0, i - 1] + img[0, i]
-	for i in range(1, h):
-		for j in range(1, w):
-			i_img[i, j] = img[i, j] + i_img[i - 1, j] + i_img[i, j - 1] - i_img[i - 1, j - 1]
-	return i_img
-
-def build_dataset_image_offset(repository, image_number, xc, yc, dmax, nsamples, h2, v2, h3, v3, sq):
-	intg = build_integral_image(readimage(repository, image_number))
-	rep_x = np.random.randint(-dmax, dmax + 1, nsamples)
-	rep_y = np.random.randint(-dmax, dmax + 1, nsamples)
-	xs = xc + rep_x
-	ys = yc + rep_y
-	rep = np.zeros((nsamples, 2))
-	rep[:, 0] = rep_x
-	rep[:, 1] = rep_y
-	return compute_features(intg, xs, ys, h2, v2, h3, v3, sq), rep
-
-def bdio_helper(jobargs):
-	return build_dataset_image_offset(*jobargs)
-
-def build_dataset_image_offset_mp(repository, xc, yc, ims, dmax, nsamples, h2, v2, h3, v3, sq, n_jobs):
-	nimages = xc.size
-	jobargs = [(repository, ims[image_number], xc[image_number], yc[image_number], dmax, nsamples, h2, v2, h3, v3, sq) for image_number in range(nimages)]
-	P = Pool(n_jobs)
-	T = P.map(bdio_helper, jobargs)
-	P.close()
-	P.join()
-	DATASET = None
-	REP = None
-	IMG = None
-	b = 0
-	for i in range(nimages):
-		(data, r) = T[i]
-		if (i == 0):
-			(h, w) = data.shape
-			DATASET = np.zeros((h * nimages, w))
-			REP = np.zeros((h * nimages, 2))
-			IMG = np.zeros(h * nimages)
-		next_b = b + h
-		DATASET[b:next_b, :] = data
-		REP[b:next_b, :] = r
-		IMG[b:next_b] = i
-		b = next_b
-	return DATASET, REP, IMG
+import joblib
 
 def	get_neubias_coords(gt_path, tr_im):
 	first_im = imageio.imread(os.path.join(gt_path, '%d.tif'%tr_im[0]))
@@ -163,7 +46,6 @@ if __name__ == "__main__":
 				break
 
 		term_list = range(1, tmax+1)
-		depths = 1. / (2. ** np.arange(conn.parameters.model_depth))
 		tr_im = [int(id_im) for id_im in conn.parameters.cytomine_training_images.split(',')]
 		DATA = None
 		REP = None
@@ -184,7 +66,7 @@ if __name__ == "__main__":
 		#job_parameters['model_n'] = conn.parameters.model_n
 
 		#DROPPED PARAMETERS BECAUSE THEY ARE NOT USED AT TRAINING
-		#DON'T FORGET TO ADD THEM ADD PREDICTION...
+		#DON'T FORGET TO ADD THEM AT PREDICTION...
 		#job_parameters['model_R_MAX'] = conn.parameters.model_R_MAX
 		#job_parameters['model_R_MIN'] = conn.parameters.model_R_MIN
 		#job_parameters['model_alpha'] = conn.parameters.model_alpha
@@ -223,8 +105,8 @@ if __name__ == "__main__":
 		conn.job.update(status=Job.RUNNING, progress=80, statusComment="Computing the post-processing model...")
 		xt = procrustes(Xc,Yc)
 		(mu,P) = apply_pca(xt,conn.parameters.model_n_reduc)
-		muP_filename = joblib.dump((mu,P),'muP.joblib')
-		features_filename = joblib.dump((h2, v2, h3, v3, sq), 'features.joblib')
+		muP_filename = joblib.dump((mu,P),'muP.joblib', compress=3)[0]
+		features_filename = joblib.dump((h2, v2, h3, v3, sq), 'features.joblib', compress=3)[0]
 		AttachedFile(
 			conn.job,
 			domainIdent=conn.job.id,

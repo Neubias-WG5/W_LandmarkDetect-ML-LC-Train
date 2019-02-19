@@ -1,5 +1,6 @@
 FROM python:3.6
 
+RUN pip install https://github.com/Cytomine-ULiege/LandmarkTools/archive/v0.0.2b.zip
 # --------------------------------------------------------------------------------------------
 # Install Cytomine python client
 RUN git clone https://github.com/cytomine-uliege/Cytomine-python-client.git
@@ -20,9 +21,10 @@ RUN rm -r /neubiaswg5-utilities
 
 
 RUN pip install scikit-learn imageio scipy
-RUN pip install https://github.com/Cytomine-ULiege/LandmarkTools/archive/master.zip
 
 ADD descriptor.json /app/descriptor.json
 ADD run.py /app/run.py
+ADD VotingTreeRegressor.py /app/VotingTreeRegressor.py
+
 
 ENTRYPOINT ["python", "/app/run.py"]
