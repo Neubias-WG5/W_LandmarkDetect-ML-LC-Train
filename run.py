@@ -107,6 +107,7 @@ if __name__ == "__main__":
 		(mu,P) = apply_pca(xt,conn.parameters.model_n_reduc)
 		muP_filename = joblib.dump((mu,P),'muP.joblib', compress=3)[0]
 		features_filename = joblib.dump((h2, v2, h3, v3, sq), 'features.joblib', compress=3)[0]
+		coords_filename = joblib.dump((xc, yc), 'coords.joblib', compress=3)[0]
 		AttachedFile(
 			conn.job,
 			domainIdent=conn.job.id,
@@ -117,6 +118,12 @@ if __name__ == "__main__":
 			conn.job,
 			domainIdent=conn.job.id,
 			filename=features_filename,
+			domainClassName="be.cytomine.processing.Job"
+		).upload()
+		AttachedFile(
+			conn.job,
+			domainIdent=conn.job.id,
+			filename=coords_filename,
 			domainClassName="be.cytomine.processing.Job"
 		).upload()
 		Property(conn.job, key="id_terms", value=sfinal.rstrip(" ")).save()
